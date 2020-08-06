@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Firmas sin fondos</title>
+    
+    <style>
+    #canvasOutput, #imageSrc{
+      border: solid 1px blue;  
+      width: 70%;
+    }
+    </style>
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+  </head>
+  <body>
+    <br>
+    <div class="container">
+    <h2>Eliminar el fondo de la firma</h2>
+    <p>Para tener buenos resultados</p>
+    <ul>
+      <li>Firmar sobre un fondo blanco plano</li>
+      <li>Tomar foto nítida con flash</li>
+      <li>Recomendable, escanear con Cam Scanner o similares</li>
+    </ul>
+
+    <h4 id="status">Cargando por favor espere...</h4>
+    <br>
+    <div id="workspace" style="visibility: hidden;">
+      <div class="inputoutput">
+        <img id="imageSrc" alt="No Image" />
+        <div class="caption">
+          Imagen original
+          <input type="file" id="fileInput" name="file" />
+        </div>
+      </div>
+      <hr>
+      <br>
+      <div class="inputoutput">
+        <canvas id="canvasOutput" ></canvas>
+        <div class="caption">Resultado (se descargará automáticamente)</div>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      let imgElement = document.getElementById('imageSrc');
+      let inputElement = document.getElementById('fileInput');
+
+      inputElement.addEventListener('change', (e) => {
+        imgElement.src = URL.createObjectURL(e.target.files[0]);
+      }, false);
+
+      imgElement.onload = function() {
+        let img = cv.imread(imgElement);
+        let gray = new cv.Mat();
+        cv.cvtColor(img, gray, cv.COLOR_BGR2GRAY, 0);
+        cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT)
+        
+        let bin_img = new cv.Mat();
+        //cv.threshold(gray, bin_img, 100, 255, cv.THRESH_BINARY)
+        cv.adaptiveThreshold(gray, bin_img, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 55, 4)
+        
+        let M = cv.Mat.ones(3, 3, cv.CV_8U);
+        let anchor = new cv.Point(-1, -1);
+        cv.erode(bin_img, bin_img, M, anchor, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+        
+        let img_rgba = new cv.Mat();
+        cv.cvtColor(img, img_rgba, cv.COLOR_BGR2BGRA, 0);
+        
+        for(let i = 0; i < img.rows; i++){
+          for(let j = 0; j < img.cols; j++){
+            if(bin_img.ucharPtr(i, j)[0] === 0){
+              img_rgba.ucharPtr(i, j)[3] = 0;
+            }
+          }
+        }
+        
+        cv.imshow('canvasOutput', img_rgba);
+        
+        img.delete();
+        gray.delete();
+        bin_img.delete();
+        img_rgba.delete();
+        
+<!--        var canvas = document.getElementById("canvasOutput");-->
+<!--        var out = canvas.toDataURL("image/png");-->
+<!--        -->
+<!--        var downloadLink = document.createElement('a');-->
+<!--        downloadLink.href = out;-->
+<!--        downloadLink.download = 'firma-out.png';-->
+
+<!--        document.body.appendChild(downloadLink);-->
+<!--        downloadLink.click();-->
+<!--        document.body.removeChild(downloadLink);-->
+      };
+
+      function onOpenCvReady() {
+        document.getElementById('status').innerHTML = 'Cargue la imágen';
+        let workspace = document.getElementById('workspace');
+        workspace.style.visibility = 'visible';
+      }
+    </script>
+
+    <script async src="opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    </div>
+  </body>
+</html>
